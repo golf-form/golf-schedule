@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ゴルフ参加回答フォーム</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: sans-serif;
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-top: 0;
+    }
+
+    label {
+      display: block;
+      margin-top: 20px;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+
+    input,
+    select,
+    button {
+      width: 100%;
+      min-height: 44px;
+      font-size: 16px;
+      padding: 8px;
+    }
+
+    .date-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .date-row input {
+      flex: 1;
+    }
+
+    .remove-date {
+      width: 80px;
+      flex-shrink: 0;
+    }
+
+    #addDate {
+      margin-top: 4px;
+      background: white;
+    }
+
+    #submitButton {
+      margin-top: 24px;
+    }
+
+    #message {
+      margin-top: 16px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h1>ゴルフ参加回答フォーム</h1>
+
+    <form id="golfForm">
+
+      <label for="name">名前</label>
+      <input type="text" id="name" required>
+
+      <label for="attendance">参加可否</label>
+      <select id="attendance">
+        <option value="">選択してください</option>
+        <option value="参加">参加</option>
+        <option value="不参加">不参加</option>
+      </select>
+
+      <label for="car_available">車を出せますか？</label>
+      <select id="car_available">
+        <option value="">選択してください</option>
+        <option value="はい">はい</option>
+        <option value="いいえ">いいえ</option>
+      </select>
+
+      <label>参加可能日</label>
+
+      <div id="dateContainer">
+        <div class="date-row">
+          <input type="date" class="available-date">
+        </div>
+      </div>
+
+      <button type="button" id="addDate">＋ 参加可能日を追加</button>
+
+      <label for="golf_course">希望ゴルフ場</label>
+      <input type="text" id="golf_course">
+
+      <button type="submit" id="submitButton">回答を送信</button>
+
+    </form>
+
+    <p id="message"></p>
+
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://ewhqgxyscbpjxhrtvwum.supabase.co";
+
+    const SUPABASE_ANON_KEY = "sb_publishable_yVWVActp5jUP2NJyEmFdpw_BiCxW5dl";
+
+
+    // 参加可能日を追加
+    document.getElementById("addDate").addEventListener("click", function () {
+
+      const container = document.getElementById("dateContainer");
+
+      const row = document.createElement("div");
+      row.className = "date-row";
+
+      row.innerHTML = `
+        <input type="date" class="available-date">
+        <button type="button" class="remove-date">削除</button>
+      `;
+
+      container.appendChild(row);
+    });
+
+
+    // 追加した日付を削除
+    document.getElementById("dateContainer").addEventListener("click", function (event) {
+
+      if (event.target.classList.contains("remove-date")) {
+
+        event.target.parentElement.remove();
+
+      }
+
+    });
+
+
+    // フォーム送信
+    document.getElementById("golfForm").addEventListener("submit", async function (event) {
+
+      event.preventDefault();
+
+      const message = document.getElementById("message");
+
+      const name = document.getElementById("name").value;
+      const attendance = document.getElementById("attendance").value;
+      const carAvailable = document.getElementById("car_available").value;
+      const golfCourse = document.getElementById("golf_course").value;
+
+      const dateInputs = document.querySelectorAll(".available-date");
+
+      const dates = [];
+
+      dateInputs.forEach(function (input) {
+        if (input.value) {
+          dates.push(input.value);
+        }
+      });
+
+
+      if (dates.length === 0) {
+        message.textContent = "参加可能日を1つ以上入力してください。";
+        return;
+      }
+
+
+      message.textContent = "送信中...";
+
+
+      // 回答本体を登録
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/golf_responses`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+            "Prefer": "return=representation"
+          },
+
+          body: JSON.stringify({
+            name: name,
+            attendance: attendance || null,
+            car_available: carAvailable || null,
+            available_date: dates[0] || null,
+            golf_course: golfCourse || null
+          })
+        }
+      );
+
+
+      if (!response.ok) {
+
+        const error = await response.text();
+
+        console.error(error);
+
+        message.textContent = "回答の送信に失敗しました。";
+
+        return;
+      }
+
+
+      const responseData = await response.json();
+
+      const responseId = responseData[0].id;
+
+
+      // 参加可能日を登録
+      const dateData = dates.map(function (date) {
+
+        return {
+          response_id: responseId,
+          available_date: date
+        };
+
+      });
+
+
+      const dateResponse = await fetch(
+        `${SUPABASE_URL}/rest/v1/golf_available_dates`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+            "Prefer": "return=minimal"
+          },
+
+          body: JSON.stringify(dateData)
+        }
+      );
+
+
+      if (!dateResponse.ok) {
+
+        const error = await dateResponse.text();
+
+        console.error(error);
+
+        message.textContent = "回答は登録されましたが、参加可能日の登録に失敗しました。";
+
+        return;
+      }
+
+
+      message.textContent = "回答を送信しました！";
+
+      document.getElementById("golfForm").reset();
+
+      // 日付欄を最初の1つに戻す
+      document.getElementById("dateContainer").innerHTML = `
+        <div class="date-row">
+          <input type="date" class="available-date">
+        </div>
+      `;
+
+    });
+
+  </script>
+
+</body>
+</html>

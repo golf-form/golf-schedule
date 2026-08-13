@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>ゴルフ回答一覧</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: sans-serif;
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin: 0 0 20px;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin: 28px 0 12px;
+    }
+
+    .summary {
+      background: white;
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .summary-section {
+      margin-bottom: 24px;
+    }
+
+    .summary-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .summary-label {
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .summary-number {
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .summary-list {
+      margin: 8px 0 0;
+      padding-left: 22px;
+    }
+
+    .summary-list li {
+      margin: 5px 0;
+    }
+
+    .ranking-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      margin: 6px 0;
+      background: #f8f8f8;
+      border-radius: 8px;
+    }
+
+    .ranking-date {
+      font-weight: bold;
+    }
+
+    .ranking-count {
+      font-weight: bold;
+    }
+
+    #summaryMessage {
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    .reload-button {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 20px;
+      font-size: 16px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .response-card {
+      background: white;
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .name {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+
+    .item {
+      margin: 8px 0;
+      line-height: 1.5;
+    }
+
+    .label {
+      font-weight: bold;
+    }
+
+    .date-list {
+      margin: 6px 0 0;
+      padding-left: 20px;
+    }
+
+    .date-list li {
+      margin: 4px 0;
+    }
+
+    #message {
+      background: white;
+      border-radius: 12px;
+      padding: 18px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .back-button {
+      display: block;
+      width: 100%;
+      max-width: 700px;
+      margin: 0 auto 20px;
+      padding: 12px;
+      text-align: center;
+      text-decoration: none;
+      background: white;
+      color: #333;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    .error-message {
+      color: #c00;
+      font-weight: bold;
+      white-space: pre-wrap;
+      text-align: left;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <a href="golf_form.html" class="back-button">
+      ← 回答フォームに戻る
+    </a>
+
+    <h1>ゴルフ回答一覧</h1>
+
+    <div class="summary">
+
+      <h2>回答集計</h2>
+
+      <div class="summary-section">
+        <div class="summary-label">参加人数</div>
+
+        <div
+          class="summary-number"
+          id="participantCount"
+        >
+          -
+        </div>
+      </div>
+
+      <div class="summary-section">
+        <div class="summary-label">参加者</div>
+
+        <ul
+          class="summary-list"
+          id="participantList"
+        >
+          <li>読み込み中...</li>
+        </ul>
+      </div>
+
+      <div class="summary-section">
+        <div class="summary-label">車を出せる人数</div>
+
+        <div
+          class="summary-number"
+          id="carCount"
+        >
+          -
+        </div>
+      </div>
+
+      <div class="summary-section">
+        <div class="summary-label">車を出せる人</div>
+
+        <ul
+          class="summary-list"
+          id="carList"
+        >
+          <li>読み込み中...</li>
+        </ul>
+      </div>
+
+      <div class="summary-section">
+        <div class="summary-label">参加可能日 TOP3</div>
+
+        <div id="dateRanking">
+          読み込み中...
+        </div>
+      </div>
+
+      <div id="summaryMessage"></div>
+
+    </div>
+
+    <button
+      type="button"
+      class="reload-button"
+      id="reloadButton"
+    >
+      回答を再読み込み
+    </button>
+
+    <h2>回答一覧</h2>
+
+    <div id="message">
+      読み込み中...
+    </div>
+
+    <div id="responseList"></div>
+
+  </div>
+
+
+  <script>
+
+    // ==================================================
+    // Supabase設定
+    // ==================================================
+
+    const SUPABASE_URL =
+      "https://ewhqgxyscbpjxhrtvwum.supabase.co";
+
+    const SUPABASE_ANON_KEY =
+      "sb_publishable_yVWVActp5jUP2NJyEmFdpw_BiCxW5dl";
+
+
+    const supabaseHeaders = {
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": "Bearer " + SUPABASE_ANON_KEY
+    };
+
+
+    // ==================================================
+    // 日付表示
+    // ==================================================
+
+    function formatDate(dateString) {
+
+      if (!dateString) {
+        return "";
+      }
+
+      const parts = dateString.split("-");
+
+      if (parts.length !== 3) {
+        return dateString;
+      }
+
+      return (
+        parts[0] +
+        "年" +
+        Number(parts[1]) +
+        "月" +
+        Number(parts[2]) +
+        "日"
+      );
+    }
+
+
+    // ==================================================
+    // 回答取得
+    // ==================================================
+
+    async function getResponses() {
+
+      const response = await fetch(
+        SUPABASE_URL +
+        "/rest/v1/golf_responses" +
+        "?select=id,name,attendance,car_available,golf_course" +
+        "&order=id.desc",
+        {
+          method: "GET",
+          headers: supabaseHeaders
+        }
+      );
+
+      if (!response.ok) {
+
+        const errorText =
+          await response.text();
+
+        console.error(
+          "golf_responses取得エラー:",
+          errorText
+        );
+
+        throw new Error(
+          "回答データの取得に失敗しました。\n" +
+          errorText
+        );
+      }
+
+      return await response.json();
+    }
+
+
+    // ==================================================
+    // 参加可能日取得
+    // ==================================================
+
+    async function getAvailableDates() {
+
+      const response = await fetch(
+        SUPABASE_URL +
+        "/rest/v1/golf_available_dates" +
+        "?select=response_id,available_date",
+        {
+          method: "GET",
+          headers: supabaseHeaders
+        }
+      );
+
+      if (!response.ok) {
+
+        const errorText =
+          await response.text();
+
+        console.error(
+          "golf_available_dates取得エラー:",
+          errorText
+        );
+
+        throw new Error(
+          "参加可能日の取得に失敗しました。\n" +
+          errorText
+        );
+      }
+
+      return await response.json();
+    }
+
+
+    // ==================================================
+    // 集計表示
+    // ==================================================
+
+    function displaySummary(
+      responses,
+      availableDates
+    ) {
+
+      // ----------------------------------------------
+      // 参加者
+      // ----------------------------------------------
+
+      const participants =
+        responses.filter(function(person) {
+
+          return person.attendance === "参加";
+
+        });
+
+
+      document.getElementById(
+        "participantCount"
+      ).textContent =
+        participants.length + "人";
+
+
+      const participantList =
+        document.getElementById(
+          "participantList"
+        );
+
+
+      participantList.innerHTML = "";
+
+
+      if (participants.length === 0) {
+
+        const li =
+          document.createElement("li");
+
+        li.textContent =
+          "参加者はいません";
+
+        participantList.appendChild(li);
+
+      } else {
+
+        participants.forEach(function(person) {
+
+          const li =
+            document.createElement("li");
+
+          li.textContent =
+            person.name || "名前未入力";
+
+          participantList.appendChild(li);
+
+        });
+      }
+
+
+      // ----------------------------------------------
+      // 車を出せる人
+      // ----------------------------------------------
+
+      const carPeople =
+        participants.filter(function(person) {
+
+          return person.car_available === "はい";
+
+        });
+
+
+      document.getElementById(
+        "carCount"
+      ).textContent =
+        carPeople.length + "人";
+
+
+      const carList =
+        document.getElementById("carList");
+
+
+      carList.innerHTML = "";
+
+
+      if (carPeople.length === 0) {
+
+        const li =
+          document.createElement("li");
+
+        li.textContent =
+          "車を出せる人はいません";
+
+        carList.appendChild(li);
+
+      } else {
+
+        carPeople.forEach(function(person) {
+
+          const li =
+            document.createElement("li");
+
+          li.textContent =
+            person.name || "名前未入力";
+
+          carList.appendChild(li);
+
+        });
+      }
+
+
+      // ----------------------------------------------
+      // 参加可能日 TOP3
+      // ----------------------------------------------
+
+      const participantIds =
+        new Set(
+          participants.map(function(person) {
+            return String(person.id);
+          })
+        );
+
+
+      const dateCount = {};
+
+
+      availableDates.forEach(function(item) {
+
+        const responseId =
+          String(item.response_id);
+
+        if (!participantIds.has(responseId)) {
+          return;
+        }
+
+        const date =
+          item.available_date;
+
+        if (!date) {
+          return;
+        }
+
+        if (!dateCount[date]) {
+          dateCount[date] = 0;
+        }
+
+        dateCount[date]++;
+      });
+
+
+      const ranking =
+        Object.keys(dateCount)
+          .sort(function(a, b) {
+
+            if (dateCount[b] !== dateCount[a]) {
+              return dateCount[b] - dateCount[a];
+            }
+
+            return a.localeCompare(b);
+
+          })
+          .slice(0, 3);
+
+
+      const dateRanking =
+        document.getElementById("dateRanking");
+
+
+      dateRanking.innerHTML = "";
+
+
+      if (ranking.length === 0) {
+
+        dateRanking.textContent =
+          "参加可能日の回答はありません";
+
+      } else {
+
+        ranking.forEach(function(date) {
+
+          const div =
+            document.createElement("div");
+
+          div.className =
+            "ranking-item";
+
+
+          const dateSpan =
+            document.createElement("span");
+
+          dateSpan.className =
+            "ranking-date";
+
+          dateSpan.textContent =
+            formatDate(date);
+
+
+          const countSpan =
+            document.createElement("span");
+
+          countSpan.className =
+            "ranking-count";
+
+          countSpan.textContent =
+            dateCount[date] + "人";
+
+
+          div.appendChild(dateSpan);
+          div.appendChild(countSpan);
+
+          dateRanking.appendChild(div);
+
+        });
+      }
+    }
+
+
+    // ==================================================
+    // 回答一覧表示
+    // ==================================================
+
+    function displayResponses(
+      responses,
+      availableDates
+    ) {
+
+      const message =
+        document.getElementById("message");
+
+      const responseList =
+        document.getElementById("responseList");
+
+
+      responseList.innerHTML = "";
+
+
+      if (responses.length === 0) {
+
+        message.textContent =
+          "回答はありません";
+
+        return;
+      }
+
+
+      message.textContent =
+        responses.length + "件の回答";
+
+
+      responses.forEach(function(person) {
+
+        const card =
+          document.createElement("div");
+
+        card.className =
+          "response-card";
+
+
+        // 名前
+        const name =
+          document.createElement("div");
+
+        name.className =
+          "name";
+
+        name.textContent =
+          person.name || "名前未入力";
+
+        card.appendChild(name);
+
+
+        // 参加可否
+        const attendance =
+          document.createElement("div");
+
+        attendance.className =
+          "item";
+
+        attendance.innerHTML =
+          "<span class='label'>参加：</span>" +
+          escapeHtml(
+            person.attendance || "未回答"
+          );
+
+        card.appendChild(attendance);
+
+
+        // 車
+        const car =
+          document.createElement("div");
+
+        car.className =
+          "item";
+
+        car.innerHTML =
+          "<span class='label'>車を出せますか？：</span>" +
+          escapeHtml(
+            person.car_available || "未回答"
+          );
+
+        card.appendChild(car);
+
+
+        // ゴルフ場
+        if (person.golf_course) {
+
+          const course =
+            document.createElement("div");
+
+          course.className =
+            "item";
+
+          course.innerHTML =
+            "<span class='label'>ゴルフ場：</span>" +
+            escapeHtml(
+              person.golf_course
+            );
+
+          card.appendChild(course);
+        }
+
+
+        // 参加可能日
+        const myDates =
+          availableDates.filter(function(item) {
+
+            return String(item.response_id) ===
+              String(person.id);
+
+          });
+
+
+        const dateItem =
+          document.createElement("div");
+
+        dateItem.className =
+          "item";
+
+
+        const dateLabel =
+          document.createElement("div");
+
+        dateLabel.className =
+          "label";
+
+        dateLabel.textContent =
+          "参加可能日：";
+
+
+        dateItem.appendChild(dateLabel);
+
+
+        if (myDates.length === 0) {
+
+          const noDate =
+            document.createElement("div");
+
+          noDate.textContent =
+            "登録なし";
+
+          dateItem.appendChild(noDate);
+
+        } else {
+
+          const ul =
+            document.createElement("ul");
+
+          ul.className =
+            "date-list";
+
+
+          myDates.forEach(function(item) {
+
+            const li =
+              document.createElement("li");
+
+            li.textContent =
+              formatDate(
+                item.available_date
+              );
+
+            ul.appendChild(li);
+
+          });
+
+
+          dateItem.appendChild(ul);
+        }
+
+
+        card.appendChild(dateItem);
+
+
+        responseList.appendChild(card);
+
+      });
+    }
+
+
+    // ==================================================
+    // HTMLエスケープ
+    // ==================================================
+
+    function escapeHtml(value) {
+
+      const div =
+        document.createElement("div");
+
+      div.textContent =
+        value;
+
+      return div.innerHTML;
+    }
+
+
+    // ==================================================
+    // 全データ読み込み
+    // ==================================================
+
+    async function loadAll() {
+
+      const message =
+        document.getElementById("message");
+
+      const summaryMessage =
+        document.getElementById("summaryMessage");
+
+
+      message.textContent =
+        "読み込み中...";
+
+      summaryMessage.textContent =
+        "集計データを読み込み中...";
+
+
+      try {
+
+        console.log("データ取得開始");
+
+
+        const responses =
+          await getResponses();
+
+
+        console.log(
+          "回答データ:",
+          responses
+        );
+
+
+        const availableDates =
+          await getAvailableDates();
+
+
+        console.log(
+          "参加可能日:",
+          availableDates
+        );
+
+
+        displaySummary(
+          responses,
+          availableDates
+        );
+
+
+        displayResponses(
+          responses,
+          availableDates
+        );
+
+
+        summaryMessage.textContent =
+          "読み込み完了";
+
+
+      } catch (error) {
+
+        console.error(
+          "読み込みエラー:",
+          error
+        );
+
+
+        message.innerHTML =
+          "<div class='error-message'>" +
+          "読み込みに失敗しました。<br><br>" +
+          escapeHtml(error.message) +
+          "</div>";
+
+
+        summaryMessage.innerHTML =
+          "<div class='error-message'>" +
+          "集計データの読み込みに失敗しました。<br>" +
+          escapeHtml(error.message) +
+          "</div>";
+
+      }
+    }
+
+
+    // ==================================================
+    // 再読み込みボタン
+    // ==================================================
+
+    document
+      .getElementById("reloadButton")
+      .addEventListener(
+        "click",
+        loadAll
+      );
+
+
+    // ==================================================
+    // ページ読み込み時に実行
+    // ==================================================
+
+    loadAll();
+
+  </script>
+
+</body>
+</html>
